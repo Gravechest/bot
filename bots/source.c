@@ -35,6 +35,21 @@ typedef struct BUTTON{
 	short id;
 }BUTTON;
 
+typedef struct VEC2S{
+	short x;
+	short y;
+}VEC2S;
+
+VEC2S cur;
+
+typedef struct TYPEN{
+	short *count;
+	short meta;
+	char **data;
+	VEC2S cur;
+	char vs;
+}TYPEN;
+
 ENTITY robot;
 
 short staticObjectAmm;
@@ -48,8 +63,7 @@ short lbuttonsAmm;
 char lbuttonsPressed = -1;
 BUTTON *lbuttons;
 
-short typeHoekjeStatus;
-char *typeHoekje;
+TYPEN hoekje;
 
 ROBOTDAT robotdat = {100,20};
 
@@ -58,6 +72,8 @@ const RGB colBrown = {125,67,45};
 const RGB colDarkBrown = {75,57,35};
 const RGB colRed = {234,34,10};
 const RGB colGrey = {126,128,122};
+const RGB colWhite = {255,255,255};
+const RGB colBlack = {0,0,0};
 
 char *objects;
 SCRIPT botScript;
@@ -66,6 +82,7 @@ void (*LbuttonFunctions[])(void) = {upButton,rightButton,downButton,leftButton};
 void (*buttonFunctions[])(void) = {manualButton};
 
 int tempx;
+int Ptime;
 
 PIXELFORMATDESCRIPTOR pfd = {sizeof(PIXELFORMATDESCRIPTOR), 1,
 	PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER,PFD_TYPE_RGBA,
@@ -430,13 +447,20 @@ void WINAPI Quarter1(){
 		if(lbuttonsPressed != -1){
 			LbuttonFunctions[lbuttonsPressed]();
 		}
+		if(hoekje.meta & 0x8000 && (Ptime & 0x00000080 || hoekje.vs)){
+			drawRectF(400 - hoekje.cur.y * 14,730 + hoekje.cur.x * 10,10,5,colWhite);
+			if(hoekje.vs){
+				hoekje.vs--;
+			}
+		}
 		renderRotObj(&robot,robotdat.rotation);
 		drawWord(floatToAscii(robotdat.battery.temp),25,775,4,0);
 		drawRectF(0,730,robotdat.battery.life,30,colGreen);
 		robotdat.battery.temp -= (robotdat.battery.temp - 20) / 1000; 
 		glDrawPixels(resY,resX,GL_RGB,GL_UNSIGNED_BYTE,texture);
 		SwapBuffers(wdcontext);  
-		memcpy(texture,background,resX * resY * 3);;
+		memcpy(texture,background,resX * resY * 3);
+		Ptime++;
 	}
 }
 
@@ -444,15 +468,58 @@ POINT mouse;
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam){
 	switch (msg){
 	case WM_KEYDOWN:
-		if(typeHoekjeStatus & 0x8000){
-			typeHoekjeStatus++;
-			typeHoekje = realloc(typeHoekje,typeHoekjeStatus & 0x7fff);
-			for(int i = 0;i < 0xff;i++){
+		if(hoekje.meta & 0x8000){
+			hoekje.vs = 60;
+			for(int i = 0x30;i < 0x5b;i++){
 				if(GetKeyState(i) < 0){
-					typeHoekje[typeHoekjeStatus-1];
-					drawWord("yeet",500,500,5,1);
+					if(hoekje.cur.y + 1 > hoekje.meta & 0x7fff){
+						hoekje.count = realloc(hoekje.count,(hoekje.cur.y + 1) * sizeof(short));
+						hoekje.data = realloc(hoekje.data,(hoekje.cur.y + 1) * sizeof(char*));
+					}
+					if(hoekje.count[hoekje.cur.y] < hoekje.cur.x + 1){
+						hoekje.count[hoekje.cur.y] = hoekje.cur.x + 1;
+						hoekje.data[hoekje.cur.y] = realloc(hoekje.data[hoekje.cur.y],hoekje.cur.x + 1);
+					}
+					hoekje.data[hoekje.cur.y][hoekje.cur.x] = i;
+					drawWord(&hoekje.data[hoekje.cur.y][hoekje.cur.x],400 - hoekje.cur.y * 14,730 + hoekje.cur.x * 10,2,0);
+					hoekje.cur.x++;
 					break;
 				}
+			}
+			if(GetKeyState(VK_UP) < 0){
+				hoekje.cur.y--;
+				hoekje.cur.x = 0;
+			}
+			if(GetKeyState(VK_DOWN) < 0){
+				hoekje.cur.y++;
+				hoekje.cur.x = 0;
+			}
+			if(GetKeyState(VK_RIGHT) < 0){
+				if(hoekje.count[hoekje.cur.y] > hoekje.cur.x){
+					hoekje.cur.x++;
+				}
+			}
+			if(GetKeyState(VK_LEFT) < 0){
+				if(hoekje.cur.x){
+					hoekje.cur.x--;
+				}
+			}
+
+			if(GetKeyState(VK_RETURN) < 0){
+				hoekje.cur.y++;
+				hoekje.cur.x = 0;
+			}
+			if(GetKeyState(VK_BACK) < 0){
+				if(hoekje.cur.x){
+					hoekje.cur.x--;
+				}
+				for(int i = hoekje.cur.x;i < hoekje.count[hoekje.cur.y];i++){
+					hoekje.data[hoekje.cur.y][i] = hoekje.data[hoekje.cur.y][i+1];
+					drawWord(&hoekje.data[hoekje.cur.y][i],400 - hoekje.cur.y * 14,730 + i * 10,2,0);
+				}
+				hoekje.count[hoekje.cur.y]--;
+				hoekje.data[hoekje.cur.y] = realloc(hoekje.data[hoekje.cur.y],hoekje.count[hoekje.cur.y]);
+				drawRect(400 - hoekje.cur.y * 14,730 + hoekje.count[hoekje.cur.y] * 10,10,10,colBlack);
 			}
 		}
 		break;
@@ -498,7 +565,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam){
 			}
 		}
 		if(mouse.x > 320 && mouse.x < 390 && mouse.y > 730){
-			typeHoekjeStatus ^= 0x8000;
+			hoekje.meta ^= 0x8000;
 		}
 		break;
 	case WM_CLOSE:

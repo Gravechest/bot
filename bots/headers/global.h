@@ -30,7 +30,7 @@ extern char background[resX][resY][3];
 typedef struct VEC2 {float x;float y;}VEC2;
 typedef struct RGB {char r;char g;char b;} RGB;
 
-void drawWord(const char * word,int x,int y,int size,char flags);
+void drawWord(char * word,int x,int y,int size,char flags);
 void loadImage(const char * file);
 
 void drawCircle(int x,int y,int size,RGB col);

@@ -36,7 +36,7 @@ void fontDrawing(int x,int y,int offset,int size,char flags){
 	font -= offset + 6324;
 }
 
-void drawWord(const char * word,int x,int y,int size,char flags){
+void drawWord(char * word,int x,int y,int size,char flags){
 	for(int i = 0;i < strlen(word);i++){
 		int offset = 3800;
 		int car = 0;
