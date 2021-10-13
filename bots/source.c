@@ -29,27 +29,6 @@ typedef struct OBJECTDAT{
 	char data;
 }OBJECTDATA;
 
-typedef struct BUTTON{
-	short x;
-	short y;
-	short id;
-}BUTTON;
-
-typedef struct VEC2S{
-	short x;
-	short y;
-}VEC2S;
-
-VEC2S cur;
-
-typedef struct TYPEN{
-	short *count;
-	short meta;
-	char **data;
-	VEC2S cur;
-	char vs;
-}TYPEN;
-
 ENTITY robot;
 
 short staticObjectAmm;
@@ -63,8 +42,6 @@ short lbuttonsAmm;
 char lbuttonsPressed = -1;
 BUTTON *lbuttons;
 
-TYPEN hoekje;
-
 ROBOTDAT robotdat = {100,20};
 
 const RGB colGreen = {34,180,3};
@@ -77,9 +54,11 @@ const RGB colBlack = {0,0,0};
 
 char *objects;
 SCRIPT botScript;
+TYPEN hoekje;
 
-void (*LbuttonFunctions[])(void) = {upButton,rightButton,downButton,leftButton};
-void (*buttonFunctions[])(void) = {manualButton};
+void (*LbuttonFunctions[])(void) = {upButton,rightButton,downButton,leftButton,scrollUpButton,scrollDownButton};
+void (*buttonFunctions[])(void) = {manualButton,executeButton};
+void (*buttonFunctionsO[])(void) = {manualButtonO,executeButtonO};
 
 int tempx;
 int Ptime;
@@ -139,6 +118,7 @@ char * loadFile(const char * file){
 	fseek(FILE,0,SEEK_SET);
 	char * returndata = malloc(size);
 	fread(returndata,1,size,FILE);
+	fclose(FILE);
 	return returndata;
 }
 
@@ -263,15 +243,16 @@ void createLbutton(short x,short y,short id){
 	drawCircle(x,y,25,colRed);
 }
 
-void deletebutton(short id,BUTTON *b,char *amm){
-	for(int i = 0;i < *amm;i++){
+void deleteButton(short id,BUTTON *b,short *amm){
+	for(int i = 0;i < amm[0];i++){
 		if(b[i].id == id){
-			for(int i2 = i;i2 < *amm;i2++){
+			drawSquare(b[i].x - 2,b[i].y - 2,30,colBlack);
+			for(int i2 = i;i2 < amm[0];i2++){
 				b[i2].id = b[i2+1].id;
 				b[i2].x = b[i2+1].x;
 				b[i2].y = b[i2+1].y;
 			}
-			*amm--;
+			amm[0]--;
 			break;
 		}
 	}
@@ -318,7 +299,6 @@ void WINAPI Quarter1(){
 	obstakelText.rSize = malloc(2);
 	obstakelText.rSize[0] = 28;
 	obstakelText.rSize[1] = 17;
-
 	loadImage("font.bmp");
 	loadScript(&botScript);
 	drawRect(204,730,5,339,colBrown);
@@ -328,7 +308,9 @@ void WINAPI Quarter1(){
 	drawRect(0,760,100,5,colBrown);
 	drawRect(0,825,100,5,colBrown);
 	drawRect(0,890,152,5,colBrown);
+	drawRect(323,1020,110,5,colBrown);
 	drawRect(320,730,5,339,colBrown);
+	drawRect(430,730,5,339,colBrown);
 	drawWord("battery",120,738,4,0);
 	drawWord("temp",65,775,2,0);
 	drawWord("char",65,840,2,0);
@@ -397,7 +379,7 @@ void WINAPI Quarter1(){
 				}
 			}
 		}
-		botScript.comDuration -= 1;
+		botScript.comDuration--;
 		switch(botScript.comType & 3){
 		case 0:
 			robotdat.battery.life -= 0.001;
@@ -448,11 +430,12 @@ void WINAPI Quarter1(){
 			LbuttonFunctions[lbuttonsPressed]();
 		}
 		if(hoekje.meta & 0x8000 && (Ptime & 0x00000080 || hoekje.vs)){
-			drawRectF(400 - hoekje.cur.y * 14,730 + hoekje.cur.x * 10,10,5,colWhite);
+			drawRectF(415 - hoekje.cur.y * 14,730 + hoekje.cur.x * 10,10,5,colWhite);
 			if(hoekje.vs){
 				hoekje.vs--;
 			}
 		}
+		drawWord(floatToAscii(hoekje.rcount),300,300,4,1);
 		renderRotObj(&robot,robotdat.rotation);
 		drawWord(floatToAscii(robotdat.battery.temp),25,775,4,0);
 		drawRectF(0,730,robotdat.battery.life,30,colGreen);
@@ -471,17 +454,13 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam){
 		if(hoekje.meta & 0x8000){
 			hoekje.vs = 60;
 			for(int i = 0x30;i < 0x5b;i++){
-				if(GetKeyState(i) < 0){
-					if(hoekje.cur.y + 1 > hoekje.meta & 0x7fff){
-						hoekje.count = realloc(hoekje.count,(hoekje.cur.y + 1) * sizeof(short));
-						hoekje.data = realloc(hoekje.data,(hoekje.cur.y + 1) * sizeof(char*));
-					}
+				if(GetAsyncKeyState(i) & 0x01){
 					if(hoekje.count[hoekje.cur.y] < hoekje.cur.x + 1){
 						hoekje.count[hoekje.cur.y] = hoekje.cur.x + 1;
 						hoekje.data[hoekje.cur.y] = realloc(hoekje.data[hoekje.cur.y],hoekje.cur.x + 1);
 					}
 					hoekje.data[hoekje.cur.y][hoekje.cur.x] = i;
-					drawWord(&hoekje.data[hoekje.cur.y][hoekje.cur.x],400 - hoekje.cur.y * 14,730 + hoekje.cur.x * 10,2,0);
+					drawWord(&hoekje.data[hoekje.cur.y][hoekje.cur.x],415 - hoekje.cur.y * 14,730 + hoekje.cur.x * 10,2,0);
 					hoekje.cur.x++;
 					break;
 				}
@@ -504,10 +483,22 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam){
 					hoekje.cur.x--;
 				}
 			}
-
 			if(GetKeyState(VK_RETURN) < 0){
 				hoekje.cur.y++;
 				hoekje.cur.x = 0;
+				if(hoekje.cur.y + 1 > hoekje.rcount){
+					hoekje.count = realloc(hoekje.count,(hoekje.cur.y + 1) * sizeof(short));
+					hoekje.data = realloc(hoekje.data,(hoekje.cur.y + 1) * sizeof(char*));
+					hoekje.rcount = hoekje.cur.y + 1;
+				}
+			}
+			if(GetKeyState(VK_SPACE) < 0){
+				if(hoekje.count[hoekje.cur.y] < hoekje.cur.x + 1){
+					hoekje.count[hoekje.cur.y] = hoekje.cur.x + 1;
+					hoekje.data[hoekje.cur.y] = realloc(hoekje.data[hoekje.cur.y],hoekje.cur.x + 1);
+				}
+				hoekje.data[hoekje.cur.y][hoekje.cur.x] = 0x20;
+				hoekje.cur.x++;
 			}
 			if(GetKeyState(VK_BACK) < 0){
 				if(hoekje.cur.x){
@@ -515,11 +506,11 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam){
 				}
 				for(int i = hoekje.cur.x;i < hoekje.count[hoekje.cur.y];i++){
 					hoekje.data[hoekje.cur.y][i] = hoekje.data[hoekje.cur.y][i+1];
-					drawWord(&hoekje.data[hoekje.cur.y][i],400 - hoekje.cur.y * 14,730 + i * 10,2,0);
+					drawWord(&hoekje.data[hoekje.cur.y][i],415 - hoekje.cur.y * 14,730 + i * 10,2,0);
 				}
 				hoekje.count[hoekje.cur.y]--;
 				hoekje.data[hoekje.cur.y] = realloc(hoekje.data[hoekje.cur.y],hoekje.count[hoekje.cur.y]);
-				drawRect(400 - hoekje.cur.y * 14,730 + hoekje.count[hoekje.cur.y] * 10,10,10,colBlack);
+				drawRect(415 - hoekje.cur.y * 14,730 + hoekje.count[hoekje.cur.y] * 10,10,10,colBlack);
 			}
 		}
 		break;
@@ -554,18 +545,31 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam){
 	
 		for(int i = 0;i < buttonsAmm;i++){
 			if(mouse.x > buttons[i].x && mouse.y > buttons[i].y && mouse.x < buttons[i].x + 25 && mouse.y < buttons[i].y + 25){
-				buttonFunctions[buttons[i].id]();
 				if(checkPixelCol(colGreen,mouse.x,mouse.y)){
+					buttonFunctionsO[buttons[i].id]();
 					drawCircle(buttons[i].x,buttons[i].y,25,colRed);
 				}
 				else if(checkPixelCol(colRed,mouse.x,mouse.y)){
+					buttonFunctions[buttons[i].id]();
 					drawCircle(buttons[i].x,buttons[i].y,25,colGreen);
 				}
 				break;
 			}
 		}
-		if(mouse.x > 320 && mouse.x < 390 && mouse.y > 730){
+		if(mouse.x > 320 && mouse.x < 390 && mouse.y > 730 && mouse.y < 1025){
 			hoekje.meta ^= 0x8000;
+			hoekje.vs = Ptime | 0x000000F0;
+			hoekje.count = realloc(hoekje.count,(hoekje.cur.y + 1) * sizeof(short));
+			hoekje.data = realloc(hoekje.data,(hoekje.cur.y + 1) * sizeof(char*));
+			hoekje.rcount = 1;
+			if(hoekje.meta & 0x8000){
+				createButton(332,1033,1);
+				createLbutton(362,1033,4);
+				createLbutton(392,1033,5);
+			}
+			else{
+				deleteButton(1,buttons,&buttonsAmm);
+			}
 		}
 		break;
 	case WM_CLOSE:

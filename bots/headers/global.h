@@ -18,11 +18,26 @@ typedef struct ROBOTDAT{
 
 typedef struct SCRIPT{
 	int dataSz;
-	char * data;
-	char * fileEnd;
+	char *data;
+	char *fileEnd;
 	int comDuration;
 	int comType;
 }SCRIPT;
+
+typedef struct VEC2S{
+	short x;
+	short y;
+}VEC2S;
+
+typedef struct TYPEN{
+	short scroll;
+	short rcount;
+	short *count;
+	short meta;
+	char **data;
+	VEC2S cur;
+	char vs;
+}TYPEN;
 
 extern char texture[resX][resY][3];
 extern char background[resX][resY][3];
@@ -41,6 +56,7 @@ void drawSquare(int x, int y, int size,RGB col);
 
 extern SCRIPT botScript;
 extern ROBOTDAT robotdat;
+extern TYPEN hoekje;
 
 
 
